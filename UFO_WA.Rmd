@@ -1,0 +1,247 @@
+---
+title: "Patriotic Extraterrestrials"
+author: "Kendra Blalock"
+date: "6/24/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(readxl)
+library(lubridate)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(sf)
+
+```
+
+## The Data
+I recently came across the National UFO Reporting Center, <http://www.nuforc.org/>, which hosts a publicly available UFO report database. The site allows you to view repots by state, date of sighting, shape of UFO, and the date it was posted to the site. For a short data exploration, I decided to copy the reports from Washington state to see more local activity. At the time I copied the data, there were 3963 reports that had been posted to the website from 5/15/2006 to 5/21/2020. The date range for UFO sightings spanned from 6/30/1946 to 5/14/2020.
+
+Since the location field in the website form was an open text field, some preliminary manual cleaning was needed. I removed records with locations outside of Washington state and records with no locations listed. Records with clear misspellings were corrected (“Seatle” to “Seattle”) and records with neighborhoods were updated with the city name (“Ballard (Seattle)” to “Seattle”.  Finally, a ten year range for UFO sightings was selected from January 01, 2009 to December 31, 2019. This selection brought the datasat down to 3017 records.   
+
+
+```{r UFOdata}
+
+#Load cleaned data
+ufo <- read_excel("UFO_WA_clean.xlsx")
+
+#Filter for 10-year date range
+ufo <- ufo %>% filter(Date >= "2009-01-01" & Date <= "2019-12-31")
+
+#Get total record count
+ufo %>% count()
+
+```
+
+## UFO Reporting Rates
+
+Knowing that the population of Washington state has steadily grown over the past decade, my first interest was to see how the number of reports compared to the changing population and to get a better understanding of the rate of reporting in the state. The website of the Washington Office of Financial Management provides yearly April 1st population estimates for the state: <https://www.ofm.wa.gov/washington-data-research/statewide-data/washington-trends/population-changes/total-population-and-percent-change> 
+
+```{r POP}
+#Estimated Washington State population from 2009 to 2019
+pop <- read_excel("WA_state_population.xlsx",
+                  skip = 1)
+
+#Break out date variable in UFO Data
+ufo <- ufo %>% mutate(Year = year(Date),
+                      Month = month(Date),
+                      Month.factor = factor(Month, 
+                                            levels = 1:12,
+                                            labels = c("Jan", "Feb", "Mar", "Apr",
+                                                       "May", "Jun", "Jul", "Aug", 
+                                                       "Sep", "Oct", "Nov", "Dec")),
+                      Day = day(Date)) 
+
+#Join with WA state yearly population and add a rate per 100,000 residents variable 
+ufo2 <- ufo %>% count(Year) %>% 
+  arrange(Year) %>% 
+  left_join(pop) %>% 
+  mutate(ratewa = (n/April_1_Population)*100000)
+
+#Plot the change in rate of UFO sightings
+ggplot(ufo2, aes(x = Year, y= ratewa)) +
+  geom_line() +
+  labs(title = "Past 10 Years Rate of UFO Reports in WA State",
+       y = "Per 100,000 Residents",
+       x = NULL) +
+  scale_x_continuous(limits = c(2009,2019), breaks = seq(2009, 2019, by = 1)) +
+  scale_y_continuous(limits= c(0,7), breaks = seq(0, 7, by = 1)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid = element_blank(),
+        panel.background = element_blank())
+
+
+```
+
+It was thought-provoking to see the rise and fall in the reporting rate over the past 10 years.
+
+
+## Seasons for Sightings
+Another aspect I wanted to checkout was if there was any variation in UFO sighting by month. Seasons in Washington state can vary quite dramatically with amazingly long summer days and short mood-altering winter ones. Combining the 10 years of data, I put together a quick plot. 
+
+
+```{r Seasons1}
+#Graph the number of sightings per month
+ufo %>% count(Month.factor) %>% 
+ggplot(aes(x = Month.factor, y = n)) +
+  geom_col() +
+  labs(title = "Number of UFO Sightings in WA by Month \n Jan 2009 - Dec 2019",
+       y = NULL,
+       x = NULL) +
+  scale_y_continuous(limits = c(0,600), breaks = seq(0, 600, by = 100)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid = element_blank(),
+        panel.background = element_blank())
+
+```
+
+The increasing trend of sightings in the summer seems reasonable. With more light and better weather, Washingtonians head outside for longer periods. I wanted to graph the amount of light, however, to reflect on how close the curves would mirror each other.   
+
+To do this, I copied daily light totals from <timeanddate.com> for Wenatchee, WA which is reasonably close to the geographic center of Washington state. I used 2019 as the year for the data; which shouldn't be too relevant given the amount of light per day should stay constant from year to year. <https://www.timeanddate.com/sun/usa/wenatchee?month=12&year=2019> 
+
+```{r Seasons2}
+#2019 Sunrise and sunset times and amount of daylight for Wenatchee (center of Washington state)
+sun <- read_excel("Daylight_in_Wenatchee.xlsx",
+                  sheet = "Sheet2",
+                  skip = 2)
+
+#Calculate the average amount of daylight by month using 2019 data for middle of the state
+sun <- sun %>% mutate(Daylength2 = as.character(Daylength))
+sun$hours <- as.numeric(str_sub(sun$Daylength2, 12, 13))
+sun$min <- as.numeric(str_sub(sun$Daylength2, 15, 16))
+sun$sec <-as.numeric(str_sub(sun$Daylength2, 18, 19))
+sun$Month.factor <- factor(sun$Month.factor, levels=c("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                                      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"))
+sun <- sun %>% mutate(light_hrs = (sec + (min*60) + (hours*1400))/1400) %>% 
+  group_by(Month.factor) %>% 
+  summarise(light_avg = mean(light_hrs))
+
+#Graph the curve of average daily sunlight to compare with frequency of UFO reports. 
+ggplot(sun, aes(Month.factor, light_avg))+
+  geom_col()+
+  labs(title = "Average Hours of Daylight in the Middle of WA State",
+       y = NULL,
+       x = NULL) +
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid = element_blank(),
+        panel.background = element_blank())
+
+```
+
+In viewing both graphs together, the peak during July seems even more striking then before. On the West side of the state July often marks the true beginning of consistent sunny, summer weather, but the peak seemed particularly strong even still. So I plotted the 10 years’ worth of July data by day. 
+
+
+```{r July}
+#Investigating the spike of reports in July
+ufo %>% filter(Month == 7) %>% count(Day) %>% 
+  ggplot(aes(x=Day, y=n))+
+  geom_col()+
+  scale_x_continuous(limits = c(1,31), breaks = seq(1, 31, by = 1))+
+  labs(title = "Number of UFO Sightings by Day during July\n 2009 - 2019",
+       y = NULL,
+       x = NULL)+
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid = element_blank(),
+        panel.background = element_blank())
+```
+
+So much research data analysis comes to an end with null results or minimal signal. It was pretty fun to run a plot and see such a disproportionate spike. In retrospect, I felt almost silly for not immediately recognizing why July’s frequency was higher. It makes logical sense that a national holiday involving shooting lights into the sky might lead to an increase in UFO sightings. It could also be the increase of alcohol use during celebration contributes as well. Of course, then I wondered if there are any other particular holidays which lead to increased reporting. 
+
+```{r Year}
+#Investigating to see if there are any other spikes in the year
+ufo %>% group_by(Month.factor) %>% count(Day) %>% 
+  ggplot(aes(x=Day, y=n))+
+  geom_col()+
+  facet_grid(.~Month.factor)+
+  labs(title = "Number of UFO Sightings over the Calendar Year\n Jan 2009 - May 2019",
+       y= NULL,
+       x= NULL)+ 
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid = element_blank(),
+        panel.background = element_blank(),
+        axis.text =  element_blank(),
+        axis.ticks = element_blank())
+```
+
+What I love about the plot is how quickly we can review the entire year cycle of reporting. The July 4th spike is still dominating, but there is a secondary spike that quickly becomes visible as well. This one is split over the Dec 31st and Jan 1st New Year’s holiday. This make sense given that more people are staying up into the night. Additionally, several Washington communities use fireworks to celebrate the new year. Copious amounts of alcohol are again enjoyed throughout the population.      
+
+## Location, Location, Location
+One of the naive assumptions I had about UFO sightings is that most of them occurred in rural settings. I pictured people camping in the mountains or driving through a dessert. While doing an initial review of the data, I was surprised by how many sightings were made inside cities. Ideally, I would love to calculate rates of sightings in various geographic areas using population data; however, doing so for this project would require more time than I am willing to spend. Because of the free text nature of the data collection, calculating exact location of some of the sightings would be laborious, if not impossible. 
+It was easy enough, however, to calculate how many of the sightings occurred in an incorporated city or town. The Washington Geospatial Open Data Portal website has a lot of useful spatial files and I downloaded a file with city points <http://geo.wa.gov/datasets/WSDOT::wsdot-city-points> and a file with the state border <http://geo.wa.gov/datasets/wadnr::wa-state-boundary>.
+
+Out of the 389 unique locations of UFO sightings, 210 (54%) were matched to a WA city. As sightings were not equally distributed between locations, 2661 out of 3017  (88.2%) sightings occurring in a WA city. 
+
+```{r Location}
+#Shp file for WA cities from http://geo.wa.gov/datasets/WSDOT::wsdot-city-points
+mymap <- st_read("ShapeFiles/CityPoints/WSDOT_-_City_Points.shp")
+
+#Shp file for WA state border from http://geo.wa.gov/datasets/wadnr::wa-state-boundary
+state <- st_read("ShapeFiles/StateBoundary/WA_State_Boundary.shp")
+
+#Number(%) of UFO sighting locations that matched WA cities  
+ufo %>% summarise(UniqueCities = length(unique(City))) %>% 
+  bind_cols(ufo %>% count(City) %>% inner_join(mymap, by= c("City" = "NAME")) %>% 
+              summarise(MatchedCities = length(unique(City)))) %>% 
+  mutate(PercentMatched = (MatchedCities/UniqueCities)*100)
+
+#Number(%) of reports in WA cities
+ufo %>% summarise(LocationsReported = n()) %>% 
+  bind_cols(ufo %>% inner_join(mymap, by= c("City" = "NAME")) %>% 
+              summarise(MatchedCities = n())) %>% 
+  mutate(PercentMatched = (MatchedCities/LocationsReported)*100)
+```
+
+
+To get a visual of reporting locations, I put together a simple map using the shp files and ggplot2.  
+
+```{r WAmap}
+
+#Explore geography of reports in or near WA towns/cities
+city1 <- ufo %>% count(City) 
+city2 <- inner_join(mymap, city1, by = c("NAME" = "City"))
+
+#Map reports in or near WA towns/cities
+ggplot()+
+  geom_sf(data = state) +
+  geom_sf(data = city2) +
+  coord_sf() +
+  labs(title = "UFO Sightings Near Cities \n Jan 2009 - Dec 2019")+
+  theme(plot.title = element_text(hjust = 0.5),
+      panel.grid = element_blank(),
+      panel.background = element_blank(),
+      axis.text =  element_blank(),
+      axis.ticks = element_blank())
+
+```
+
+For good measure, I reran the map with the July 4th, Dec 31st, and Jan 1st sightings marked in red to see if the sightings pulled in closer to major cities were more fireworks might be seen or if they stayed equally distributed.
+
+```{r WAmap2}
+#Check the locations of reports from July 4th, December 31st, and January 1st 
+ufo <- ufo %>% mutate(holiday = case_when((Month == 7 & Day == 4) |
+                                            (Month == 12 & Day == 31) |
+                                            (Month == 1 & Day == 1) ~ 1, 
+                                          T ~ 0))
+
+city3 <- ufo %>% filter(holiday == 1) %>%  count(City) 
+city4 <- inner_join(mymap, city3, by = c("NAME" = "City"))
+
+#Overlay red points for reports for UFO sightings on July 4th, December 31st, and January 1st
+ggplot()+
+  geom_sf(data = state) +
+  geom_sf(data = city2) +
+  geom_sf(data = city4, color = "darkred") +
+  coord_sf() +
+  labs(title = "UFO Sightings Near Cities \n Jan 2009 - Dec 2019 \n Highlighted: Jul 4th, Dec 31st, & Jan 1st Sightings") +
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid = element_blank(),
+        panel.background = element_blank(),
+        axis.text =  element_blank(),
+        axis.ticks = element_blank()) 
+
+```
+
+Although I am sure that there are many more avenues for analysis with this dataset, it was a fun exploration with good opportunities for visualization.  
