@@ -1,5 +1,5 @@
 ---
-title: "Patriotic Extraterrestrials"
+title: "EverGREEN State UFO Sightings"
 author: "Kendra Blalock"
 date: "6/24/2020"
 output: html_document
