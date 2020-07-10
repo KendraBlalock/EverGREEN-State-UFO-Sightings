@@ -17,10 +17,12 @@ library(sf)
 
 ```
 
-## The Data
-I recently came across the National UFO Reporting Center, <http://www.nuforc.org/>, which hosts a publicly available UFO report database. The site allows you to view repots by state, date of sighting, shape of UFO, and the date it was posted to the site. For a short data exploration, I decided to copy the reports from Washington state to see more local activity. At the time I copied the data, there were 3963 reports that had been posted to the website from 5/15/2006 to 5/21/2020. The date range for UFO sightings spanned from 6/30/1946 to 5/14/2020.
+![](EverGREEN_Alien_v2.png)
 
-Since the location field in the website form was an open text field, some preliminary manual cleaning was needed. I removed records with locations outside of Washington state and records with no locations listed. Records with clear misspellings were corrected (“Seatle” to “Seattle”) and records with neighborhoods were updated with the city name (“Ballard (Seattle)” to “Seattle”.  Finally, a ten year range for UFO sightings was selected from January 01, 2009 to December 31, 2019. This selection brought the datasat down to 3017 records.   
+## The Data
+I recently came across the National UFO Reporting Center, <http://www.nuforc.org/>, which hosts a publicly available UFO report database. The site allows you to view reports by state, date of sighting, shape of UFO, and the date it was posted to the site. For a short data exploration, I decided to copy the reports from Washington state to see more local activity. At the time I copied the data, there were 3963 reports that had been posted to the website from 5/15/2006 to 5/21/2020. The date range for UFO sightings spanned from 6/30/1946 to 5/14/2020.
+
+Since the location field in the website form was an open text field, some preliminary manual cleaning was needed. I removed records with locations outside of Washington state and records with no locations listed. Records with clear misspellings were corrected (“Seatle” to “Seattle”) and records with neighborhoods were updated with the city name (“Ballard (Seattle)” to “Seattle”).  Finally, a ten year range for UFO sightings was selected from January 01, 2009 to December 31, 2019. This selection brought the datasat down to 3017 records.   
 
 
 ```{r UFOdata}
@@ -131,7 +133,7 @@ ggplot(sun, aes(Month.factor, light_avg))+
 
 ```
 
-In viewing both graphs together, the peak during July seems even more striking then before. On the West side of the state July often marks the true beginning of consistent sunny, summer weather, but the peak seemed particularly strong even still. So I plotted the 10 years’ worth of July data by day. 
+On the West side of the state, July often marks the beginning of consistent sunny, summer weather. Once displayed visually with these two plots, it is easier to see how disproportionally spiked UFO sightings are in July. Something else besides good weather is driving the increase in that month. So, I plotted the 10 years’ worth of July data by day to get a better look. 
 
 
 ```{r July}
