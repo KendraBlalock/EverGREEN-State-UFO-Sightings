@@ -17,7 +17,7 @@ library(sf)
 
 ```
 
-![](EverGREEN_Alien_v2.png)
+![](EverGREEN_Alien_v3.png)
 
 ## The Data
 I recently came across the National UFO Reporting Center, <http://www.nuforc.org/>, which hosts a publicly available UFO report database. The site allows you to view reports by state, date of sighting, shape of UFO, and the date it was posted to the site. For a short data exploration, I decided to copy the reports from Washington state to see more local activity. At the time I copied the data, there were 3963 reports that had been posted to the website from 5/15/2006 to 5/21/2020. The date range for UFO sightings spanned from 6/30/1946 to 5/14/2020.
